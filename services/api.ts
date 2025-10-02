@@ -1,6 +1,6 @@
 import { CustomerModel, ProductModel, SalePayload, SupplierModel, CategoryModel, MethodModel, SaleModel } from '../types';
 
-const API_BASE_URL = 'http://localhost:3333';
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:3333';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
