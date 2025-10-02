@@ -1,15 +1,16 @@
-import { CustomerModel, ProductModel, SalePayload, SupplierModel, CategoryModel, MethodModel, SaleModel } from '../types';
+import { CustomerModel, ProductModel, SalePayload, SupplierModel, CategoryModel, MethodModel, SaleModel, ItemSaleModel } from '../types';
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:3333';
+const API_BASE_URL = 'http://localhost:3333';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
   }
-  // By awaiting the JSON parsing, we return the data directly.
-  // The 'async' keyword then wraps it in a Promise, which helps TypeScript's type inference.
-  return await response.json();
+  const text = await response.text();
+  // Se o corpo da resposta estiver vazio, retorne nulo como um valor de sucesso convencional.
+  // Isso evita erros de análise de JSON em solicitações bem-sucedidas sem conteúdo (por exemplo, 204 No Content).
+  return text ? JSON.parse(text) : (null as any);
 }
 
 // Products
@@ -28,7 +29,7 @@ export const updateProductStock = (id: number, quantity: number) =>
     body: JSON.stringify({ quantity }),
   }).then(handleResponse);
 export const deleteProduct = (id: number) => 
-  fetch(`${API_BASE_URL}/Products/${id}`, { method: 'DELETE' });
+  fetch(`${API_BASE_URL}/Products/${id}`, { method: 'DELETE' }).then(handleResponse);
 
 // Suppliers
 // FIX: Explicitly passed the generic type to handleResponse to match the function's return type.
@@ -40,7 +41,7 @@ export const createSupplier = (supplier: Omit<SupplierModel, 'supplier_id'>) =>
     body: JSON.stringify(supplier),
   }).then(handleResponse);
 export const deleteSupplier = (id: number) =>
-  fetch(`${API_BASE_URL}/Suppliers/${id}`, { method: 'DELETE' });
+  fetch(`${API_BASE_URL}/Suppliers/${id}`, { method: 'DELETE' }).then(handleResponse);
 
 // Customers
 // FIX: Explicitly passed the generic type to handleResponse to match the function's return type.
@@ -58,7 +59,7 @@ export const updateCustomerPhone = (id: number, new_phone: string) =>
     body: JSON.stringify({ new_phone }),
   }).then(handleResponse);
 export const deleteCustomer = (id: number) =>
-  fetch(`${API_BASE_URL}/Customers/${id}`, { method: 'DELETE' });
+  fetch(`${API_BASE_URL}/Customers/${id}`, { method: 'DELETE' }).then(handleResponse);
 
 // Sales
 // FIX: Explicitly passed the generic type to handleResponse to match the function's return type.
@@ -69,6 +70,9 @@ export const createSale = (saleData: SalePayload) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(saleData),
   }).then(handleResponse);
+
+// ItemSales
+export const getItemSales = (): Promise<ItemSaleModel[]> => fetch(`${API_BASE_URL}/ItemSales`).then(response => handleResponse<ItemSaleModel[]>(response));
 
 // Categories & Methods
 // FIX: Explicitly passed the generic type to handleResponse to match the function's return type.

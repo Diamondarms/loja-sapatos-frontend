@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCustomers, createCustomer, deleteCustomer, updateCustomerPhone } from '../services/api';
 import { CustomerModel } from '../types';
@@ -17,6 +16,7 @@ const CustomersPage: React.FC = () => {
     try {
       setIsLoading(true);
       const data = await getCustomers();
+      data.sort((a, b) => a.customer_id - b.customer_id);
       setCustomers(data);
       setError(null);
     } catch (err) {
@@ -118,7 +118,6 @@ const CustomersPage: React.FC = () => {
                   <td className="p-4">{customer.cep}</td>
                   <td className="p-4 space-x-2">
                     <button onClick={() => openEditModal(customer)} className="text-yellow-600 hover:text-yellow-800">Editar Telefone</button>
-                    <button onClick={() => handleDelete(customer.customer_id)} className="text-red-600 hover:text-red-800">Deletar</button>
                   </td>
                 </tr>
               ))}

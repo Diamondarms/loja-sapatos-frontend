@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getProducts, createProduct, deleteProduct, getCategories, getSuppliers, updateProductStock } from '../services/api';
 import { ProductModel, CategoryModel, SupplierModel } from '../types';
 import { Modal, LoadingSpinner } from '../components/common';
@@ -12,7 +11,7 @@ const ProductsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ProductModel | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<string>('');
   const [newProduct, setNewProduct] = useState({
     name: '', category_id: '', size: '', stock: '0', sale_price: '0.00', purchase_price: '0.00', supplier_id: ''
   });
@@ -22,6 +21,7 @@ const ProductsPage: React.FC = () => {
     try {
       setIsLoading(true);
       const data = await getProducts();
+      data.sort((a, b) => a.product_id - b.product_id);
       setProducts(data);
       setError(null);
     } catch (err) {
@@ -37,6 +37,13 @@ const ProductsPage: React.FC = () => {
     getCategories().then(setCategories);
     getSuppliers().then(setSuppliers);
   }, [fetchProducts]);
+
+  const filteredProducts = useMemo(() => {
+    if (!selectedSupplier) {
+      return products;
+    }
+    return products.filter(p => p.supplier_id === parseInt(selectedSupplier));
+  }, [products, selectedSupplier]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -105,6 +112,19 @@ const ProductsPage: React.FC = () => {
           Adicionar Produto
         </button>
       </div>
+      
+      <div className="mb-6">
+        <label htmlFor="supplier-filter" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Filtrar por Fornecedor:</label>
+        <select
+          id="supplier-filter"
+          value={selectedSupplier}
+          onChange={e => setSelectedSupplier(e.target.value)}
+          className="w-full max-w-xs p-2 border rounded bg-slate-200 dark:bg-slate-700"
+        >
+          <option value="">Todos os Fornecedores</option>
+          {suppliers.map(s => <option key={s.supplier_id} value={s.supplier_id}>{s.name}</option>)}
+        </select>
+      </div>
 
       {isLoading ? <LoadingSpinner /> : error ? <p className="text-red-500">{error}</p> : (
         <div className="bg-white dark:bg-slate-800 shadow-md rounded-lg overflow-x-auto">
@@ -113,6 +133,7 @@ const ProductsPage: React.FC = () => {
               <tr>
                 <th className="p-4">ID</th>
                 <th className="p-4">Nome</th>
+                <th className="p-4">Fornecedor</th>
                 <th className="p-4">Tamanho</th>
                 <th className="p-4">Estoque</th>
                 <th className="p-4">Preço Venda</th>
@@ -121,20 +142,24 @@ const ProductsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {products.map(product => (
-                <tr key={product.product_id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                  <td className="p-4">{product.product_id}</td>
-                  <td className="p-4">{product.name}</td>
-                  <td className="p-4">{product.size}</td>
-                  <td className="p-4">{product.stock}</td>
-                  <td className="p-4">R$ {product.sale_price}</td>
-                  <td className="p-4">R$ {product.purchase_price}</td>
-                  <td className="p-4 space-x-2">
-                    <button onClick={() => openStockModal(product)} className="text-yellow-600 hover:text-yellow-800">Editar Estoque</button>
-                    <button onClick={() => handleDelete(product.product_id)} className="text-red-600 hover:text-red-800">Deletar</button>
-                  </td>
-                </tr>
-              ))}
+              {filteredProducts.map(product => {
+                const supplierName = suppliers.find(s => s.supplier_id === product.supplier_id)?.name || 'Desconhecido';
+                return (
+                  <tr key={product.product_id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td className="p-4">{product.product_id}</td>
+                    <td className="p-4">{product.name}</td>
+                    <td className="p-4">{supplierName}</td>
+                    <td className="p-4">{product.size}</td>
+                    <td className="p-4">{product.stock}</td>
+                    <td className="p-4">R$ {product.sale_price}</td>
+                    <td className="p-4">R$ {product.purchase_price}</td>
+                    <td className="p-4 space-x-2">
+                      <button onClick={() => openStockModal(product)} className="text-yellow-600 hover:text-yellow-800">Editar Estoque</button>
+                      <button onClick={() => handleDelete(product.product_id)} className="text-red-600 hover:text-red-800">Deletar</button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

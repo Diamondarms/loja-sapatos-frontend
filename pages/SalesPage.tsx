@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { getSales, createSale, getCustomers, getProducts, getMethods } from '../services/api';
-import { SaleModel, CustomerModel, ProductModel, ItemSalePayload, MethodModel, SalePayload } from '../types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getSales, createSale, getCustomers, getProducts, getMethods, getItemSales } from '../services/api';
+import { SaleModel, CustomerModel, ProductModel, ItemSalePayload, MethodModel, SalePayload, ItemSaleModel } from '../types';
 import { Modal, LoadingSpinner } from '../components/common';
 
 const SalesPage: React.FC = () => {
@@ -9,6 +8,7 @@ const SalesPage: React.FC = () => {
   const [customers, setCustomers] = useState<CustomerModel[]>([]);
   const [products, setProducts] = useState<ProductModel[]>([]);
   const [methods, setMethods] = useState<MethodModel[]>([]);
+  const [itemSales, setItemSales] = useState<ItemSaleModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,6 +24,7 @@ const SalesPage: React.FC = () => {
     try {
       setIsLoading(true);
       const data = await getSales();
+      data.sort((a, b) => a.sale_id - b.sale_id);
       setSales(data);
       setError(null);
     } catch (err) {
@@ -39,7 +40,26 @@ const SalesPage: React.FC = () => {
     getCustomers().then(setCustomers);
     getProducts().then(setProducts);
     getMethods().then(setMethods);
+    getItemSales().then(setItemSales);
   }, [fetchSales]);
+  
+  const salesWithDetails = useMemo(() => {
+    return sales.map(sale => {
+      const itemsForSale = itemSales.filter(item => item.sale_id === sale.sale_id);
+      
+      let total = 0;
+      const purchasedItems = itemsForSale.map(currentItem => {
+        const product = products.find(p => p.product_id === currentItem.product_id);
+        if (product) {
+          total += product.sale_price * currentItem.quantity;
+          return `${product.name} (x${currentItem.quantity})`;
+        }
+        return `Produto desconhecido (ID: ${currentItem.product_id}) (x${currentItem.quantity})`;
+      });
+
+      return { ...sale, total, purchasedItems };
+    });
+  }, [sales, itemSales, products]);
 
   const handleAddItem = () => {
     if (!currentItem.product_id || parseInt(currentItem.quantity) <= 0) {
@@ -79,6 +99,8 @@ const SalesPage: React.FC = () => {
       await createSale(salePayload);
       setIsModalOpen(false);
       fetchSales();
+      getProducts().then(setProducts); // Re-fetch products to update stock info
+      getItemSales().then(setItemSales); // Re-fetch items
       setNewSale({ customer_id: '', payment_method_id: '', items: [] });
     } catch (err) {
       alert('Falha ao criar venda.');
@@ -102,19 +124,27 @@ const SalesPage: React.FC = () => {
               <tr>
                 <th className="p-4">ID Venda</th>
                 <th className="p-4">Data</th>
-                <th className="p-4">ID Cliente</th>
                 <th className="p-4">Nome Cliente</th>
+                <th className="p-4">Itens Comprados</th>
+                <th className="p-4">Preço Total</th>
               </tr>
             </thead>
             <tbody>
-              {sales.map(sale => {
+              {salesWithDetails.map(sale => {
                   const customer = customers.find(c => c.customer_id === sale.customer_id);
                   return (
                     <tr key={sale.sale_id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                       <td className="p-4">{sale.sale_id}</td>
                       <td className="p-4">{new Date(sale.sale_date).toLocaleString('pt-BR')}</td>
-                      <td className="p-4">{sale.customer_id}</td>
                       <td className="p-4">{customer ? customer.name : 'Desconhecido'}</td>
+                      <td className="p-4">
+                        <ul className="list-disc list-inside">
+                          {sale.purchasedItems.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="p-4 font-medium">R$ {sale.total.toFixed(2).replace('.', ',')}</td>
                     </tr>
                 )
               })}

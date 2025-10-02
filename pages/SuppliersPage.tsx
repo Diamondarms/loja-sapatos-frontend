@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { getSuppliers, createSupplier, deleteSupplier } from '../services/api';
 import { SupplierModel } from '../types';
@@ -15,6 +14,7 @@ const SuppliersPage: React.FC = () => {
     try {
       setIsLoading(true);
       const data = await getSuppliers();
+      data.sort((a, b) => a.supplier_id - b.supplier_id);
       setSuppliers(data);
       setError(null);
     } catch (err) {
